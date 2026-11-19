@@ -3,7 +3,7 @@
 REST API for **jobs and companies** of a drinking water delivery business (19-litre bottle delivery, RO plant, logistics).
 Built with **Node.js, Express and MongoDB (Mongoose)**. Later tasks (search, applicant accounts, employer dashboard, email alerts) build on this API.
 
-**Live API:** `https://YOUR-APP.onrender.com`  (replace after deploying)
+**Live API:** `https://aquafresh-job-board.vercel.app`  (replace after deploying)
 **Health check:** `GET /api/health`
 
 ## Features
