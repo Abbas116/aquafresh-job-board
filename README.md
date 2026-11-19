@@ -75,14 +75,40 @@ curl -X POST http://localhost:5000/api/jobs -H "Content-Type: application/json" 
 | 429 | Too many requests |
 
 ## Tests
+
 ```bash
 npm test
 ```
-The first run downloads a MongoDB binary for the in-memory database (one time, needs internet). Tests cover: create company/job (success), missing title (failure), salaryMax < salaryMin, duplicate company, unknown company, invalid id, bad JSON, pagination, update/delete.
 
-## Deploy (Render)
-1. Push to GitHub. 2. In MongoDB Atlas allow network access `0.0.0.0/0`. 3. On render.com create a **Web Service** from the repo:
-   Build command `npm install`, Start command `npm start`. 4. Add env vars `MONGODB_URI` and `NODE_ENV=production`. 5. Run the seed once with your Atlas URI from your computer (`npm run seed`). 6. Put the live URL at the top of this README.
+Tests use a separate database so your real data is never touched. Add this to your `.env` first (the database name must contain `test`):
+
+```
+TEST_MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/aquafresh-jobs-test?retryWrites=true&w=majority
+```
+
+Tests cover: creating a company and a job (success), missing job title (failure with a clear message), salaryMax below salaryMin, duplicate company, unknown company, invalid id, malformed JSON, pagination, and update and delete.
+
+## Deploy (Vercel)
+
+The API is deployed on Vercel as a serverless function.
+
+**Files used for deployment**
+- `api/index.js`: connects to MongoDB and passes requests to the Express app
+- `vercel.json`: sends every URL to `api/index.js`
+
+**Steps**
+1. Push the project to GitHub (`.env` must not be pushed).
+2. In MongoDB Atlas, open Network Access and allow `0.0.0.0/0`.
+3. On vercel.com, sign up with GitHub, then click **Add New, Project** and import this repository.
+4. Set Framework Preset to **Other** and keep the other settings as default.
+5. Add these Environment Variables:
+   - `MONGODB_URI`: your Atlas connection string
+   - `NODE_ENV`: `production`
+6. Click **Deploy**.
+7. Open `<your-vercel-link>/api/health` and `<your-vercel-link>/api/jobs` to check it works.
+8. Load sample data once from your computer with `npm run seed` (it uses the same Atlas database).
+
+After changing an environment variable, redeploy the project in Vercel.
 
 ## Project structure
 ```
