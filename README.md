@@ -123,3 +123,67 @@ src/
   app.js / server.js
 tests/api.test.js
 ```
+
+## Job search with filters (Task 2)
+
+`GET /api/jobs` is now the job search. Every filter is optional and filters can be combined.
+
+| Parameter | Example | Meaning |
+|---|---|---|
+| `q` | `q=driver` | Keyword search in job title and description (title counts more) |
+| `location` | `location=Peshawar` | City (not case sensitive) |
+| `jobType` | `jobType=part-time,contract` | One or more of `full-time`, `part-time`, `contract` |
+| `shift` | `shift=night` | One or more of `morning`, `evening`, `night`, `rotating` |
+| `vehicleType` | `vehicleType=bike,suzuki-bolan` | One or more of `none`, `bike`, `suzuki-bolan`, `pickup`, `truck` |
+| `licenseRequired` | `licenseRequired=false` | `true` or `false` |
+| `salaryMin` / `salaryMax` | `salaryMin=40000&salaryMax=60000` | Monthly salary in PKR. Jobs whose pay range overlaps your range are returned |
+| `company` | `company=<companyId>` | Jobs of one company |
+| `status` | `status=all` | `open` (default), `closed` or `all` |
+| `sort` | `sort=salary_high` | `relevance` (default with `q`), `newest` (default), `oldest`, `salary_high`, `salary_low` |
+| `page`, `limit` | `page=2&limit=10` | Pagination, `limit` is 1 to 50 |
+
+### Examples
+```
+/api/jobs?q=driver&location=Islamabad
+/api/jobs?vehicleType=suzuki-bolan,truck&licenseRequired=true&salaryMin=50000
+/api/jobs?shift=night&jobType=full-time&sort=salary_high
+```
+
+### Response
+```json
+{
+  "data": [ { "title": "Delivery Driver (Suzuki Bolan)", "company": { "name": "AquaFresh Water Delivery" } } ],
+  "page": 1, "limit": 10, "total": 4, "totalPages": 1,
+  "filters": { "status": "open", "vehicleType": ["suzuki-bolan"], "sort": "newest" }
+}
+```
+If nothing matches, the API returns `200`, an empty `data` list, `total: 0` and a `message`.
+
+### Filter options for a search form
+`GET /api/jobs/filters` returns the cities that have open jobs, all allowed job types, shifts and vehicle types, and the lowest and highest salary.
+
+### Wrong input
+Bad input returns `400` with a clear message and never crashes the server:
+
+| Request | Message |
+|---|---|
+| `?jobType=weekly` | `jobType must be one or more of: full-time, part-time, contract` |
+| `?salaryMin=70000&salaryMax=30000` | `salaryMin cannot be greater than salaryMax` |
+| `?q=` | `q cannot be empty. Remove it or give a value` |
+| `?limit=abc` | `limit must be a whole number between 1 and 50` |
+| `?locaton=Peshawar` | `Unknown filter: locaton. Allowed filters: ...` |
+| `?location[$ne]=x` | rejected (400) |
+
+### Performance and security
+- MongoDB text index on title and description (title weighted higher), plus indexes on status, location, vehicle type, salary and created date
+- Filters run in the database with pagination (max 50 per page)
+- Every filter is validated against allowed values; arrays and objects are rejected; city text is escaped so it cannot be used as a regex; unknown filters are rejected
+
+### Sample data
+`npm run seed` loads 5 companies and 26 water delivery jobs (24 open, 2 closed) in Rawalpindi, Islamabad and Peshawar: riders, Suzuki Bolan, pickup and truck drivers, RO plant operators, quality inspectors, loaders and office roles, with realistic PKR salaries. The seed also creates the search index, so run it once on every new database.
+
+### Tests
+`npm test` now runs three test files:
+- `tests/jobQuery.test.js`: checks filter validation (no database needed)
+- `tests/search.test.js`: checks search and filters against the test database (main path: keyword, location, combined filters, salary, sorting, pagination; failure path: wrong jobType, salary range, empty text, injection, unknown filter)
+- `tests/api.test.js`: Task 1 tests

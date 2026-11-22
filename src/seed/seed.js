@@ -8,6 +8,7 @@ async function seed() {
   if (!process.env.MONGODB_URI) throw new Error('MONGODB_URI is missing in .env');
   await mongoose.connect(process.env.MONGODB_URI);
 
+  await Job.syncIndexes(); // makes sure the search (text) index exists
   await Job.deleteMany({});
   await Company.deleteMany({});
 

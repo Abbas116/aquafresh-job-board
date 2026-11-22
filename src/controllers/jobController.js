@@ -4,7 +4,8 @@ const Company = require('../models/Company');
 const ApiError = require('../utils/ApiError');
 const asyncHandler = require('../utils/asyncHandler');
 const pick = require('../utils/pick');
-const paginate = require('../utils/pagination');
+const { parseJobQuery } = require('../utils/jobQuery');
+const { JOB_TYPES, SHIFTS, VEHICLES } = require('../constants/job');
 
 const FIELDS = [
   'title', 'description', 'company', 'location', 'jobType', 'salaryMin', 'salaryMax',
@@ -24,17 +25,42 @@ exports.createJob = asyncHandler(async (req, res) => {
 });
 
 exports.getJobs = asyncHandler(async (req, res) => {
-  const { page, limit, skip } = paginate(req.query);
-  const filter = {};
-  // Basic filters only; full search & filters come in Task 2
-  if (req.query.status) filter.status = String(req.query.status);
-  if (mongoose.isValidObjectId(req.query.company)) filter.company = req.query.company;
+  const { filter, sort, projection, applied, page, limit, skip } = parseJobQuery(req.query);
 
   const [data, total] = await Promise.all([
-    Job.find(filter).populate('company', 'name city').sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    Job.find(filter, projection).populate('company', 'name city').sort(sort).skip(skip).limit(limit).lean(),
     Job.countDocuments(filter)
   ]);
-  res.json({ data, page, limit, total, totalPages: Math.ceil(total / limit) });
+
+  res.json({
+    data,
+    page,
+    limit,
+    total,
+    totalPages: Math.ceil(total / limit),
+    filters: applied,
+    ...(total === 0 && { message: 'No jobs match your search. Try fewer filters or a different keyword.' })
+  });
+});
+
+// Options for the search form: cities and salary range that exist in open jobs
+exports.getFilterOptions = asyncHandler(async (req, res) => {
+  const [locations, salary] = await Promise.all([
+    Job.distinct('location', { status: 'open' }),
+    Job.aggregate([
+      { $match: { status: 'open' } },
+      { $group: { _id: null, min: { $min: '$salaryMin' }, max: { $max: '$salaryMax' } } }
+    ])
+  ]);
+  res.json({
+    data: {
+      locations: locations.sort(),
+      jobTypes: JOB_TYPES,
+      shifts: SHIFTS,
+      vehicleTypes: VEHICLES,
+      salary: salary[0] ? { min: salary[0].min, max: salary[0].max, currency: 'PKR' } : null
+    }
+  });
 });
 
 exports.getJob = asyncHandler(async (req, res) => {

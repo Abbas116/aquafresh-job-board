@@ -18,6 +18,9 @@ exports.errorHandler = (err, req, res, next) => {
   } else if (err.code === 11000) {
     status = 409;
     message = `${Object.keys(err.keyValue || {})[0] || 'Value'} already exists`;
+  } else if (err.code === 27) {
+    status = 503;
+    message = 'Search index is not ready yet. Run npm run seed once, or try again in a minute';
   } else if (err.type === 'entity.parse.failed') {
     status = 400;
     message = 'Request body is not valid JSON';

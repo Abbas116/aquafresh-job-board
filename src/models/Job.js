@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-const VEHICLES = ['none', 'bike', 'suzuki-bolan', 'pickup', 'truck'];
+const { JOB_TYPES, SHIFTS, VEHICLES, STATUSES } = require('../constants/job');
 
 const jobSchema = new mongoose.Schema(
   {
@@ -26,7 +26,7 @@ const jobSchema = new mongoose.Schema(
     location: { type: String, required: [true, 'Location is required'], trim: true, index: true },
     jobType: {
       type: String,
-      enum: { values: ['full-time', 'part-time', 'contract'], message: 'jobType must be full-time, part-time or contract' },
+      enum: { values: JOB_TYPES, message: 'jobType must be full-time, part-time or contract' },
       default: 'full-time'
     },
     salaryMin: { type: Number, required: [true, 'salaryMin is required'], min: [0, 'salaryMin cannot be negative'] },
@@ -50,13 +50,13 @@ const jobSchema = new mongoose.Schema(
     licenseRequired: { type: Boolean, default: false },
     shift: {
       type: String,
-      enum: { values: ['morning', 'evening', 'night', 'rotating'], message: 'shift must be morning, evening, night or rotating' },
+      enum: { values: SHIFTS, message: 'shift must be morning, evening, night or rotating' },
       default: 'morning'
     },
     bottleCapacityPerDay: { type: Number, min: [0, 'bottleCapacityPerDay cannot be negative'] },
     status: {
       type: String,
-      enum: { values: ['open', 'closed'], message: 'status must be open or closed' },
+      enum: { values: STATUSES, message: 'status must be open or closed' },
       default: 'open',
       index: true
     }
@@ -64,6 +64,15 @@ const jobSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for search and filters (Task 2)
 jobSchema.index({ createdAt: -1 });
+jobSchema.index({ status: 1, location: 1, createdAt: -1 }); // default list + location filter
+jobSchema.index({ status: 1, vehicleType: 1 });
+jobSchema.index({ salaryMin: 1, salaryMax: 1 });
+// Keyword search: title matters more than description
+jobSchema.index(
+  { title: 'text', description: 'text' },
+  { weights: { title: 10, description: 2 }, name: 'job_text_search' }
+);
 
 module.exports = mongoose.model('Job', jobSchema);
